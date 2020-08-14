@@ -1,4 +1,3 @@
-#include "defines.hpp"
 #include "piano.hpp"
 
 class CfgSounds
