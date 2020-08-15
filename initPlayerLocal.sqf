@@ -98,9 +98,17 @@ PIANO_keySoundMap = [
 
 PIANO_soundObjects = [];
 PIANO_keyOriginalColorMap = [];
+PIANO_keyHeld = [];
 
 PIANO_keyDownHandlerId = -1;
 PIANO_keyUpHandlerId = -1;
+
+PIANO_sustain = false;
+
+PIANO_fnc_silence = {
+	sleep 0.1;
+	deleteVehicle _this;
+};
 
 PIANO_fnc_keyDownHandler = {
 	_keyCode = _this select 1;
@@ -112,18 +120,31 @@ PIANO_fnc_keyDownHandler = {
 		true
 	};
 
+	if (_keyCode == 57) exitWith {
+		PIANO_sustain = true;
+		true
+	};
+
 	if (_keyCode < count PIANO_keyControlMap) then {
 		_idc = PIANO_keyControlMap select _keyCode;
 
 		if (_idc != -1) exitWith {
 			_keyIndex = _idc - 1000;
 
-			if (isNull(PIANO_soundObjects select _keyIndex)) then {
-				ctrlSetText [_idc, "#(argb,8,8,3)color(1,0,0,1)"];
-				//_obj = playSound (PIANO_keySoundMap select _keyIndex);
+			if (!(PIANO_keyHeld select _keyIndex)) then {
+				_existing = PIANO_soundObjects select _keyIndex;
+
+				if (!isNull _existing) then {
+					_existing spawn PIANO_fnc_silence;
+				};
+
 				_obj = "Land_HelipadEmpty_F" createVehicle (getPos player);
 				_obj say [PIANO_keySoundMap select _keyIndex, 100];
+
 				PIANO_soundObjects set [_keyIndex, _obj];
+				PIANO_keyHeld set [_keyIndex, true];
+				
+				ctrlSetText [_idc, "#(argb,8,8,3)color(1,0,0,1)"];
 			};
 
 			true
@@ -136,6 +157,18 @@ PIANO_fnc_keyDownHandler = {
 PIANO_fnc_keyUpHandler = {
 	_keyCode = _this select 1;
 
+	if (_keyCode == 57) exitWith {
+		PIANO_sustain = false;
+		{
+			if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
+				deleteVehicle _x;
+				PIANO_soundObjects set [_forEachIndex, objNull];
+			};
+
+		} forEach PIANO_soundObjects;
+		true
+	};
+
 	if (_keyCode < count PIANO_keyControlMap) then {
 		_idc = PIANO_keyControlMap select _keyCode;
 
@@ -143,12 +176,12 @@ PIANO_fnc_keyUpHandler = {
 			_keyIndex = _idc - 1000;
 			ctrlSetText [_idc, PIANO_keyOriginalColorMap select _keyIndex];
 
-			(PIANO_soundObjects select _keyIndex) spawn {
-				sleep 0.1;
-				deleteVehicle _this;
+			if (!PIANO_sustain) then {
+				(PIANO_soundObjects select _keyIndex) spawn PIANO_fnc_silence;
+				PIANO_soundObjects set [_keyIndex, objNull];
 			};
 
-			PIANO_soundObjects set [_keyIndex, objNull];
+			PIANO_keyHeld set [_keyIndex, false];
 			true
 		};
 	};
@@ -156,21 +189,16 @@ PIANO_fnc_keyUpHandler = {
 	false
 };
 
-PIANO_fnc_init = {
-	for "_i" from 0 to 35 do {
-		PIANO_keyOriginalColorMap pushBack (ctrlText (1000 + _i));
-		PIANO_soundObjects pushBack objNull;
-	};
-};
-
 PIANO_fnc_open = {
 	createDialog "piano";
 
-	// @TODO: Temporary hack.
-	[] call PIANO_fnc_init;
+	for "_i" from 0 to 35 do {
+		PIANO_keyOriginalColorMap pushBack (ctrlText (1000 + _i));
+		PIANO_soundObjects pushBack objNull;
+		PIANO_keyHeld pushBack false;
+	};
 
 	waitUntil {!isNull (findDisplay 46)};
 	PIANO_keyDownHandlerId = (findDisplay 46) displayAddEventHandler ["KeyDown", "_this call PIANO_fnc_keyDownHandler"];
 	PIANO_keyUpHandlerId = (findDisplay 46) displayAddEventHandler ["KeyUp", "_this call PIANO_fnc_keyUpHandler"];
 };
-
