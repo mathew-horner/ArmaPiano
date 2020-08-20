@@ -1,100 +1,10 @@
-PIANO_keyControlMap = [
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	-1,
-	1000,
-	1001,
-	1002,
-	1003,
-	1004,
-	1005,
-	1006,
-	1007,
-	1008,
-	1009,
-	1010,
-	1011,
-	1023,
-	1035,
-	1012,
-	1013,
-	1014,
-	1015,
-	1016,
-	1017,
-	1018,
-	1019,
-	1020,
-	1021,
-	1022,
-	-1
-	-1,
-	-1,
-	-1,
-	1024,
-	1025,
-	1026,
-	1027,
-	1028,
-	1029,
-	1030,
-	1031,
-	1032,
-	1033,
-	1034
-];
+#define KEYCODE_ESCAPE 1
+#define KEYCODE_SPACE 57
+#define BASE_IDC 1000
+#define SUSTAIN_BACKGROUND_IDC 1036
 
-PIANO_keySoundMap = [
-	"C3",
-	"Csh3",
-	"D3",
-	"Dsh3",
-	"E3",
-	"F3",
-	"Fsh3",
-	"G3",
-	"Gsh3",
-	"A3",
-	"Ash3",
-	"B3",
-	"C4",
-	"Csh4",
-	"D4",
-	"Dsh4",
-	"E4",
-	"F4",
-	"Fsh4",
-	"G4",
-	"Gsh4",
-	"A4",
-	"Ash4",
-	"B4",
-	"C5",
-	"Csh5",
-	"D5",
-	"Dsh5",
-	"E5",
-	"F5",
-	"Fsh5",
-	"G5",
-	"Gsh5",
-	"A5",
-	"Ash5",
-	"B5"
-];
+PIANO_keyControlMap = [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1023, 1035, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, -1, -1, -1, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032, 1033, 1034];
+PIANO_keySoundMap = ["C3", "Csh3", "D3", "Dsh3", "E3", "F3", "Fsh3", "G3", "Gsh3", "A3", "Ash3", "B3", "C4", "Csh4", "D4", "Dsh4", "E4", "F4", "Fsh4", "G4", "Gsh4", "A4", "Ash4", "B4", "C5", "Csh5", "D5", "Dsh5", "E5", "F5", "Fsh5", "G5", "Gsh5", "A5", "Ash5", "B5"];
 
 PIANO_soundObjects = [];
 PIANO_keyOriginalColorMap = [];
@@ -113,15 +23,16 @@ PIANO_fnc_silence = {
 PIANO_fnc_keyDownHandler = {
 	_keyCode = _this select 1;
 
-	if (_keyCode == 1) exitWith {
+	if (_keyCode == KEYCODE_ESCAPE) exitWith {
 		(findDisplay 46) displayRemoveEventHandler ["KeyDown", PIANO_keyDownHandlerId];
 		(findDisplay 46) displayRemoveEventHandler ["KeyUp", PIANO_keyUpHandlerId];
 		closeDialog 0;
 		true
 	};
 
-	if (_keyCode == 57) exitWith {
+	if (_keyCode == KEYCODE_SPACE) exitWith {
 		PIANO_sustain = true;
+		ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
 		true
 	};
 
@@ -129,11 +40,10 @@ PIANO_fnc_keyDownHandler = {
 		_idc = PIANO_keyControlMap select _keyCode;
 
 		if (_idc != -1) exitWith {
-			_keyIndex = _idc - 1000;
-
+			_keyIndex = _idc - BASE_IDC;
 			if (!(PIANO_keyHeld select _keyIndex)) then {
 				_existing = PIANO_soundObjects select _keyIndex;
-
+				
 				if (!isNull _existing) then {
 					_existing spawn PIANO_fnc_silence;
 				};
@@ -157,23 +67,24 @@ PIANO_fnc_keyDownHandler = {
 PIANO_fnc_keyUpHandler = {
 	_keyCode = _this select 1;
 
-	if (_keyCode == 57) exitWith {
+	if (_keyCode == KEYCODE_SPACE) exitWith {
 		PIANO_sustain = false;
+		ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
 		{
 			if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
-				deleteVehicle _x;
+				_x spawn PIANO_fnc_silence;
 				PIANO_soundObjects set [_forEachIndex, objNull];
 			};
 
 		} forEach PIANO_soundObjects;
+
 		true
 	};
 
 	if (_keyCode < count PIANO_keyControlMap) then {
 		_idc = PIANO_keyControlMap select _keyCode;
-
 		if (_idc != -1) exitWith {
-			_keyIndex = _idc - 1000;
+			_keyIndex = _idc - BASE_IDC;
 			ctrlSetText [_idc, PIANO_keyOriginalColorMap select _keyIndex];
 
 			if (!PIANO_sustain) then {
@@ -191,9 +102,9 @@ PIANO_fnc_keyUpHandler = {
 
 PIANO_fnc_open = {
 	createDialog "piano";
-
+	
 	for "_i" from 0 to 35 do {
-		PIANO_keyOriginalColorMap pushBack (ctrlText (1000 + _i));
+		PIANO_keyOriginalColorMap pushBack (ctrlText (BASE_IDC + _i));
 		PIANO_soundObjects pushBack objNull;
 		PIANO_keyHeld pushBack false;
 	};

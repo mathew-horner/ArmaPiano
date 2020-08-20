@@ -82,6 +82,38 @@ class RscPicture
 	};
 };
 
+class RscStructuredText
+{
+	deletable = 0;
+	fade = 0;
+	access = 0;
+	type = 13;
+	idc = -1;
+	style = 0;
+	colorText[] = 
+	{
+		1,
+		1,
+		1,
+		1
+	};
+	class Attributes
+	{
+		font = "RobotoCondensed";
+		color = "#ffffff";
+		colorLink = "#D09B43";
+		align = "left";
+		shadow = 1;
+	};
+	x = 0;
+	y = 0;
+	h = 0.035;
+	w = 0.1;
+	text = "";
+	size = "(((((safezoneW / safezoneH) min 1.2) / 1.2) / 25) * 1)";
+	shadow = 1;
+};
+
 // @TODO: Fix note names.
 class Piano
 {
@@ -110,6 +142,27 @@ class Piano
 			y = 0.3856 * safezoneH + safezoneY;
 			w = 0.567219 * safezoneW;
 			h = 0.0055 * safezoneH;
+		};
+
+		class SustainBackground: RscPicture
+		{
+			idc = 1036;
+			x = 0.435031 * safezoneW + safezoneX;
+			y = 0.676 * safezoneH + safezoneY;
+			w = 0.118594 * safezoneW;
+			h = 0.055 * safezoneH;
+			text = "#(argb,8,8,3)color(0,0,0,0.8)";
+		};
+
+		class SustainText: RscStructuredText
+		{
+			idc = -1;
+			text = "<t  align = 'center' valign='middle' size='2'>SUSTAIN</t>"; //--- ToDo: Localize;
+			x = 0.435031 * safezoneW + safezoneX;
+			y = 0.676 * safezoneH + safezoneY;
+			w = 0.118594 * safezoneW;
+			h = 0.055 * safezoneH;
+			colorBackground[] = {0,0,0,0};
 		};
 
 		/*
