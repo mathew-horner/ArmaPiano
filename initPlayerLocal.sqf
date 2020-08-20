@@ -19,11 +19,6 @@ PIANO_recording = false;
 PIANO_recordingData = [];
 PIANO_recordingStart = -1;
 
-PIANO_fnc_silence = {
-	sleep 0.1;
-	deleteVehicle _this;
-};
-
 PIANO_fnc_keyDownHandler = {
 	_keyCode = _this select 1;
 
@@ -50,17 +45,13 @@ PIANO_fnc_keyDownHandler = {
 				
 				if (!isNull _existing) then {
 					[_keyIndex, "UP"] call PIANO_fnc_recordNote;
-					_existing spawn PIANO_fnc_silence;
+					_existing spawn PIANO_fnc_silenceObject;
 				};
 
 				[_keyIndex, "DOWN"] call PIANO_fnc_recordNote;
-
-				_obj = "Land_HelipadEmpty_F" createVehicle (getPos player);
-				_obj say [PIANO_keySoundMap select _keyIndex, 100];
-
-				PIANO_soundObjects set [_keyIndex, _obj];
+				[_keyIndex] call PIANO_fnc_playNote;
 				PIANO_keyHeld set [_keyIndex, true];
-				
+
 				ctrlSetText [_idc, "#(argb,8,8,3)color(1,0,0,1)"];
 			};
 
@@ -80,8 +71,7 @@ PIANO_fnc_keyUpHandler = {
 		{
 			if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
 				[_forEachIndex, "UP"] call PIANO_fnc_recordNote;
-				_x spawn PIANO_fnc_silence;
-				PIANO_soundObjects set [_forEachIndex, objNull];
+				[_forEachIndex] call PIANO_fnc_silenceNote;
 			};
 
 		} forEach PIANO_soundObjects;
@@ -97,8 +87,7 @@ PIANO_fnc_keyUpHandler = {
 
 			if (!PIANO_sustain) then {
 				[_keyIndex, "UP"] call PIANO_fnc_recordNote;
-				(PIANO_soundObjects select _keyIndex) spawn PIANO_fnc_silence;
-				PIANO_soundObjects set [_keyIndex, objNull];
+				[_keyIndex] call PIANO_fnc_silenceNote;
 			};
 
 			PIANO_keyHeld set [_keyIndex, false];
@@ -128,6 +117,24 @@ PIANO_fnc_open = {
 	PIANO_recordingStart = time;
 };
 
+PIANO_fnc_silenceObject = {
+	sleep 0.1;
+	deleteVehicle _this;
+};
+
+PIANO_fnc_playNote = {
+	params ["_keyIndex"];
+	_obj = "Land_HelipadEmpty_F" createVehicle (getPos player);
+	_obj say [PIANO_keySoundMap select _keyIndex, 100];
+	PIANO_soundObjects set [_keyIndex, _obj];
+};
+
+PIANO_fnc_silenceNote = {
+	params ["_keyIndex"];
+	(PIANO_soundObjects select _keyIndex) spawn PIANO_fnc_silenceObject;
+	PIANO_soundObjects set [_keyIndex, objNull];
+};
+
 PIANO_fnc_recordNote = {
 	params ["_keyIndex", "_direction"];
 	if (!PIANO_recording) exitWith {};
@@ -144,15 +151,12 @@ PIANO_fnc_playback = {
 
 		waitUntil {time - _start >= _eventTime};
 
-		// @TODO: Might want to abstract the playing/silencing of individual notes.
-		if (_direction == "DOWN") then {
-			_obj = "Land_HelipadEmpty_F" createVehicle (getPos player);
-			_obj say [PIANO_keySoundMap select _keyIndex, 100];
-			PIANO_soundObjects set [_keyIndex, _obj];
-		} else {
-			if (_direction == "UP") then {
-				(PIANO_soundObjects select _keyIndex) spawn PIANO_fnc_silence;
-				PIANO_soundObjects set [_keyIndex, objNull];
+		switch (_direction) do {
+			case "DOWN": {
+				[_keyIndex] call PIANO_fnc_playNote;
+			};
+			case "UP": {
+				[_keyIndex] call PIANO_fnc_silenceNote;
 			};
 		};
 
