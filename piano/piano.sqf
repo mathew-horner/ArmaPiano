@@ -36,8 +36,11 @@ PIANO_fnc_keyDownHandler = {
 	if (PIANO_playingBack) exitWith { false };
 
 	if (_keyCode == KEYCODE_SPACE) exitWith {
-		PIANO_sustain = true;
-		ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
+		if (!PIANO_sustain) then {
+			["SUSTAIN_DOWN", -1] call PIANO_fnc_recordEvent;
+			ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
+			PIANO_sustain = true;
+		};
 		true
 	};
 
@@ -46,18 +49,11 @@ PIANO_fnc_keyDownHandler = {
 
 		if (_idc != -1) exitWith {
 			_keyIndex = _idc - BASE_IDC;
+			
 			if (!(PIANO_keyHeld select _keyIndex)) then {
-				_existing = PIANO_soundObjects select _keyIndex;
-				
-				if (!isNull _existing) then {
-					[_keyIndex, "UP"] call PIANO_fnc_recordNote;
-					_existing spawn PIANO_fnc_silenceObject;
-				};
-
-				[_keyIndex, "DOWN"] call PIANO_fnc_recordNote;
+				["KEY_DOWN", _keyIndex] call PIANO_fnc_recordEvent;
 				[_keyIndex] call PIANO_fnc_playNote;
 				PIANO_keyHeld set [_keyIndex, true];
-
 				ctrlSetText [_idc, "#(argb,8,8,3)color(1,0,0,1)"];
 			};
 
@@ -72,16 +68,18 @@ PIANO_fnc_keyUpHandler = {
 	_keyCode = _this select 1;
 
 	if (_keyCode == KEYCODE_SPACE) exitWith {
-		PIANO_sustain = false;
-		ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
-		{
-			if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
-				[_forEachIndex, "UP"] call PIANO_fnc_recordNote;
-				[_forEachIndex] call PIANO_fnc_silenceNote;
-			};
+		if (PIANO_sustain) then {
+			["SUSTAIN_UP", -1] call PIANO_fnc_recordEvent;
+			ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
+			{
+				if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
+					[_forEachIndex] call PIANO_fnc_silenceNote;
+				};
 
-		} forEach PIANO_soundObjects;
+			} forEach PIANO_soundObjects;
 
+			PIANO_sustain = false;
+		};
 		true
 	};
 
@@ -92,10 +90,10 @@ PIANO_fnc_keyUpHandler = {
 			ctrlSetText [_idc, PIANO_keyOriginalColorMap select _keyIndex];
 
 			if (!PIANO_sustain) then {
-				[_keyIndex, "UP"] call PIANO_fnc_recordNote;
 				[_keyIndex] call PIANO_fnc_silenceNote;
 			};
 
+			["KEY_UP", _keyIndex] call PIANO_fnc_recordEvent;
 			PIANO_keyHeld set [_keyIndex, false];
 			true
 		};
@@ -125,6 +123,12 @@ PIANO_fnc_silenceObject = {
 
 PIANO_fnc_playNote = {
 	params ["_keyIndex"];
+	_existing = PIANO_soundObjects select _keyIndex;
+
+	if (!isNull _existing) then {
+		_existing spawn PIANO_fnc_silenceObject;
+	};
+	
 	_obj = "Land_HelipadEmpty_F" createVehicle (getPos player);
 	_obj say [PIANO_keySoundMap select _keyIndex, 100];
 	PIANO_soundObjects set [_keyIndex, _obj];
@@ -136,15 +140,15 @@ PIANO_fnc_silenceNote = {
 	PIANO_soundObjects set [_keyIndex, objNull];
 };
 
-PIANO_fnc_recordNote = {
-	params ["_keyIndex", "_direction"];
+PIANO_fnc_recordEvent = {
+	params ["_event", "_data"];
 	if (!PIANO_recording) exitWith {};
 
 	// @TODO: Instead of calculating it here, should we get the time when the key event first happens (aka, the EH is entered)? 
 	// This may provide us with a more accurate time stamp for the note.
-	_data = [_keyIndex, _direction, time - PIANO_recordingStart];
+	_entry = [_event, _data, time - PIANO_recordingStart];
 
-	PIANO_recordingData pushBack _data;
+	PIANO_recordingData pushBack _entry;
 };
 
 PIANO_fnc_playback = {
@@ -156,11 +160,11 @@ PIANO_fnc_playback = {
 	((findDisplay PIANO_IDD) displayCtrl PLAY_BUTTON_IDC) ctrlSetTooltip "Stop Playback.";
 
 	{
-		_keyIndex = _x select 0;
-		_direction = _x select 1;
-		_eventTime = _x select 2;
+		_event = _x select 0;
+		_data = _x select 1;
+		_time = _x select 2;
 
-		waitUntil {time - _start >= _eventTime};
+		waitUntil {time - _start >= _time};
 
 		if (!PIANO_playingBack) exitWith {
 			for "_i" from 0 to 35 do {
@@ -168,18 +172,42 @@ PIANO_fnc_playback = {
 				[_i] call PIANO_fnc_silenceNote;
 				ctrlSetText [BASE_IDC + _i, PIANO_keyOriginalColorMap select _i];
 			};
+			ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
 		};
 
 		// @TODO: Probably need to refactor this code because sustained notes show as being held which makes the playback look a bit wonky.
 		// We should account for sustain pedal activity as well and display that appropriately.
-		switch (_direction) do {
-			case "DOWN": {
-				[_keyIndex] call PIANO_fnc_playNote;
-				ctrlSetText [BASE_IDC + _keyIndex, "#(argb,8,8,3)color(1,0,0,1)"];
+		switch (_event) do {
+			case "KEY_DOWN": {
+				[_data] call PIANO_fnc_playNote;
+				ctrlSetText [BASE_IDC + _data, "#(argb,8,8,3)color(1,0,0,1)"];
+				PIANO_keyHeld set [_data, true];
 			};
-			case "UP": {
-				[_keyIndex] call PIANO_fnc_silenceNote;
-				ctrlSetText [BASE_IDC + _keyIndex, PIANO_keyOriginalColorMap select _keyIndex];
+
+			case "KEY_UP": {
+				if (!PIANO_sustain) then {
+					[_data] call PIANO_fnc_silenceNote;
+				};
+				ctrlSetText [BASE_IDC + _data, PIANO_keyOriginalColorMap select _data];
+				PIANO_keyHeld set [_data, false];
+			};
+
+			// @TODO: Abstract sustain action with the interactive piano code?
+			case "SUSTAIN_DOWN": {
+				PIANO_sustain = true;
+				ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
+			};
+
+			case "SUSTAIN_UP": {
+				PIANO_sustain = false;
+				ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
+				copyToClipboard str PIANO_soundObjects;
+				{
+					if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
+						[_forEachIndex] call PIANO_fnc_silenceNote;
+					};
+
+				} forEach PIANO_soundObjects;
 			};
 		};
 		
