@@ -309,7 +309,7 @@ class Piano
 			y = 0.3394 * safezoneH + safezoneY;
 			w = 0.02475 * safezoneW;
 			h = 0.0418 * safezoneH;
-			action = "if (!PIANO_recording) then { [] spawn PIANO_fnc_playback; };";
+			action = "if (!PIANO_recording && !PIANO_playingBack) then { [] spawn PIANO_fnc_playback; } else { PIANO_playingBack = false; };";
 			toolTip = "Playback Recording.";
 			onKeyDown = "_this call PIANO_fnc_keyDownHandler;";
 			onKeyUp = "_this call PIANO_fnc_keyUpHandler;";

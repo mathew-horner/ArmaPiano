@@ -139,7 +139,11 @@ PIANO_fnc_silenceNote = {
 PIANO_fnc_recordNote = {
 	params ["_keyIndex", "_direction"];
 	if (!PIANO_recording) exitWith {};
+
+	// @TODO: Instead of calculating it here, should we get the time when the key event first happens (aka, the EH is entered)? 
+	// This may provide us with a more accurate time stamp for the note.
 	_data = [_keyIndex, _direction, time - PIANO_recordingStart];
+
 	PIANO_recordingData pushBack _data;
 };
 
@@ -149,12 +153,22 @@ PIANO_fnc_playback = {
 	PIANO_playingBack = true;
 	_start = time;
 
+	((findDisplay PIANO_IDD) displayCtrl PLAY_BUTTON_IDC) ctrlSetTooltip "Stop Playback.";
+
 	{
 		_keyIndex = _x select 0;
 		_direction = _x select 1;
 		_eventTime = _x select 2;
 
 		waitUntil {time - _start >= _eventTime};
+
+		if (!PIANO_playingBack) exitWith {
+			for "_i" from 0 to 35 do {
+				// @TODO: We may want to abstract the silencing / playing of a note with setting the color properly as well.
+				[_i] call PIANO_fnc_silenceNote;
+				ctrlSetText [BASE_IDC + _i, PIANO_keyOriginalColorMap select _i];
+			};
+		};
 
 		// @TODO: Probably need to refactor this code because sustained notes show as being held which makes the playback look a bit wonky.
 		// We should account for sustain pedal activity as well and display that appropriately.
@@ -172,6 +186,7 @@ PIANO_fnc_playback = {
 	} forEach PIANO_recordingData;
 
 	PIANO_playingBack = false;
+	((findDisplay PIANO_IDD) displayCtrl PLAY_BUTTON_IDC) ctrlSetTooltip "Playback Recording.";
 };
 
 PIANO_fnc_startRecording = {
