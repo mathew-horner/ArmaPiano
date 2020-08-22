@@ -114,10 +114,114 @@ class RscStructuredText
 	shadow = 1;
 };
 
+class RscButton
+{
+	deletable = 0;
+	fade = 0;
+	access = 0;
+	type = 1;
+	text = "";
+	colorText[] = 
+	{
+		1,
+		1,
+		1,
+		1
+	};
+	colorDisabled[] = 
+	{
+		1,
+		1,
+		1,
+		0
+	};
+	colorBackground[] = 
+	{
+		0,
+		0,
+		0,
+		0
+	};
+	colorBackgroundDisabled[] = 
+	{
+		0,
+		0,
+		0,
+		0
+	};
+	colorBackgroundActive[] = 
+	{
+		0,
+		0,
+		0,
+		0
+	};
+	colorFocused[] = 
+	{
+		0,
+		0,
+		0,
+		0
+	};
+	colorShadow[] = 
+	{
+		0,
+		0,
+		0,
+		0
+	};
+	colorBorder[] = 
+	{
+		0,
+		0,
+		0,
+		0
+	};
+	soundEnter[] = 
+	{
+		"\A3\ui_f\data\sound\RscButton\soundEnter",
+		0.09,
+		1
+	};
+	soundPush[] = 
+	{
+		"\A3\ui_f\data\sound\RscButton\soundPush",
+		0.09,
+		1
+	};
+	soundClick[] = 
+	{
+		"\A3\ui_f\data\sound\RscButton\soundClick",
+		0.09,
+		1
+	};
+	soundEscape[] = 
+	{
+		"\A3\ui_f\data\sound\RscButton\soundEscape",
+		0.09,
+		1
+	};
+	idc = -1;
+	style = 2;
+	x = 0;
+	y = 0;
+	w = 0.095589;
+	h = 0.039216;
+	shadow = 2;
+	font = "RobotoCondensed";
+	sizeEx = "(((((safezoneW / safezoneH) min 1.2) / 1.2) / 25) * 1)";
+	url = "";
+	offsetX = 0;
+	offsetY = 0;
+	offsetPressedX = 0;
+	offsetPressedY = 0;
+	borderSize = 0;
+};
+
 // @TODO: Fix note names.
 class Piano
 {
-	idd = -1;
+	idd = 999;
 
 	class controlsBackground
 	{
@@ -163,6 +267,52 @@ class Piano
 			w = 0.118594 * safezoneW;
 			h = 0.055 * safezoneH;
 			colorBackground[] = {0,0,0,0};
+		};
+
+		class RecordButtonImage: RscPicture
+		{
+			idc = -1;
+			text = "#(argb,8,8,3)color(1,0,0,1)";
+			x = 0.379342 * safezoneW + safezoneX;
+			y = 0.3394 * safezoneH + safezoneY;
+			w = 0.02475 * safezoneW;
+			h = 0.0418 * safezoneH;
+		};
+
+		class RecordButton: RscButton
+		{
+			idc = 1037;
+			x = 0.379342 * safezoneW + safezoneX;
+			y = 0.3394 * safezoneH + safezoneY;
+			w = 0.02475 * safezoneW;
+			h = 0.0418 * safezoneH;
+			action = "disableSerialization; if (!PIANO_recording) then { [] call PIANO_fnc_startRecording; ((findDisplay 999) displayCtrl 1037) ctrlSetToolTip ""Stop Recording.""; } else { PIANO_recording = false; ((findDisplay 999) displayCtrl 1037) ctrlSetToolTip ""Start Recording.""; };";
+			toolTip = "Start Recording.";
+			onKeyDown = "_this call PIANO_fnc_keyDownHandler;";
+			onKeyUp = "_this call PIANO_fnc_keyUpHandler;";
+		};
+
+		class PlayButtonImage: RscPicture
+		{
+			idc = -1;
+			text = "#(argb,8,8,3)color(1,1,1,1)";
+			x = 0.405123 * safezoneW + safezoneX;
+			y = 0.3394 * safezoneH + safezoneY;
+			w = 0.02475 * safezoneW;
+			h = 0.0418 * safezoneH;
+		};
+
+		class PlayButton: RscButton
+		{
+			idc = 1038;
+			x = 0.405123 * safezoneW + safezoneX;
+			y = 0.3394 * safezoneH + safezoneY;
+			w = 0.02475 * safezoneW;
+			h = 0.0418 * safezoneH;
+			action = "if (!PIANO_recording) then { [] spawn PIANO_fnc_playback; };";
+			toolTip = "Playback Recording.";
+			onKeyDown = "_this call PIANO_fnc_keyDownHandler;";
+			onKeyUp = "_this call PIANO_fnc_keyUpHandler;";
 		};
 
 		/*
