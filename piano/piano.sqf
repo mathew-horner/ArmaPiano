@@ -38,8 +38,7 @@ PIANO_fnc_keyDownHandler = {
 	if (_keyCode == KEYCODE_SPACE) exitWith {
 		if (!PIANO_sustain) then {
 			["SUSTAIN_DOWN", -1] call PIANO_fnc_recordEvent;
-			ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
-			PIANO_sustain = true;
+			[] call PIANO_fnc_sustainDown;
 		};
 		true
 	};
@@ -52,9 +51,7 @@ PIANO_fnc_keyDownHandler = {
 			
 			if (!(PIANO_keyHeld select _keyIndex)) then {
 				["KEY_DOWN", _keyIndex] call PIANO_fnc_recordEvent;
-				[_keyIndex] call PIANO_fnc_playNote;
-				PIANO_keyHeld set [_keyIndex, true];
-				ctrlSetText [_idc, "#(argb,8,8,3)color(1,0,0,1)"];
+				[_keyIndex] call PIANO_fnc_keyDown;
 			};
 
 			true
@@ -70,31 +67,18 @@ PIANO_fnc_keyUpHandler = {
 	if (_keyCode == KEYCODE_SPACE) exitWith {
 		if (PIANO_sustain) then {
 			["SUSTAIN_UP", -1] call PIANO_fnc_recordEvent;
-			ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
-			{
-				if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
-					[_forEachIndex] call PIANO_fnc_silenceNote;
-				};
-
-			} forEach PIANO_soundObjects;
-
-			PIANO_sustain = false;
+			[] call PIANO_fnc_sustainUp;
 		};
 		true
 	};
 
 	if (_keyCode < count PIANO_keyControlMap) then {
 		_idc = PIANO_keyControlMap select _keyCode;
+
 		if (_idc != -1) exitWith {
 			_keyIndex = _idc - BASE_IDC;
-			ctrlSetText [_idc, PIANO_keyOriginalColorMap select _keyIndex];
-
-			if (!PIANO_sustain) then {
-				[_keyIndex] call PIANO_fnc_silenceNote;
-			};
-
 			["KEY_UP", _keyIndex] call PIANO_fnc_recordEvent;
-			PIANO_keyHeld set [_keyIndex, false];
+			[_keyIndex] call PIANO_fnc_keyUp;
 			true
 		};
 	};
@@ -116,11 +100,6 @@ PIANO_fnc_open = {
 	PIANO_keyUpHandlerId = (findDisplay 46) displayAddEventHandler ["KeyUp", "_this call PIANO_fnc_keyUpHandler"];
 };
 
-PIANO_fnc_silenceObject = {
-	sleep 0.1;
-	deleteVehicle _this;
-};
-
 PIANO_fnc_playNote = {
 	params ["_keyIndex"];
 	_existing = PIANO_soundObjects select _keyIndex;
@@ -138,6 +117,43 @@ PIANO_fnc_silenceNote = {
 	params ["_keyIndex"];
 	(PIANO_soundObjects select _keyIndex) spawn PIANO_fnc_silenceObject;
 	PIANO_soundObjects set [_keyIndex, objNull];
+};
+
+PIANO_fnc_silenceObject = {
+	sleep 0.1;
+	deleteVehicle _this;
+};
+
+PIANO_fnc_keyDown = {
+	params ["_keyIndex"];
+	[_keyIndex] call PIANO_fnc_playNote;
+	ctrlSetText [BASE_IDC + _keyIndex, "#(argb,8,8,3)color(1,0,0,1)"];
+	PIANO_keyHeld set [_keyIndex, true];
+};
+
+PIANO_fnc_keyUp = {
+	params ["_keyIndex"];
+	if (!PIANO_sustain) then {
+		[_keyIndex] call PIANO_fnc_silenceNote;
+	};
+	ctrlSetText [BASE_IDC + _keyIndex, PIANO_keyOriginalColorMap select _keyIndex];
+	PIANO_keyHeld set [_keyIndex, false];
+};
+
+PIANO_fnc_sustainDown = {
+	PIANO_sustain = true;
+	ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
+};
+
+PIANO_fnc_sustainUp = {
+	PIANO_sustain = false;
+	ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
+	{
+		if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
+			[_forEachIndex] call PIANO_fnc_silenceNote;
+		};
+
+	} forEach PIANO_soundObjects;
 };
 
 PIANO_fnc_recordEvent = {
@@ -175,39 +191,18 @@ PIANO_fnc_playback = {
 			ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
 		};
 
-		// @TODO: Probably need to refactor this code because sustained notes show as being held which makes the playback look a bit wonky.
-		// We should account for sustain pedal activity as well and display that appropriately.
 		switch (_event) do {
 			case "KEY_DOWN": {
-				[_data] call PIANO_fnc_playNote;
-				ctrlSetText [BASE_IDC + _data, "#(argb,8,8,3)color(1,0,0,1)"];
-				PIANO_keyHeld set [_data, true];
+				[_data] call PIANO_fnc_keyDown;
 			};
-
 			case "KEY_UP": {
-				if (!PIANO_sustain) then {
-					[_data] call PIANO_fnc_silenceNote;
-				};
-				ctrlSetText [BASE_IDC + _data, PIANO_keyOriginalColorMap select _data];
-				PIANO_keyHeld set [_data, false];
+				[_data] call PIANO_fnc_keyUp;
 			};
-
-			// @TODO: Abstract sustain action with the interactive piano code?
 			case "SUSTAIN_DOWN": {
-				PIANO_sustain = true;
-				ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(1,0,0,0.8)"];
+				[] call PIANO_fnc_sustainDown;
 			};
-
 			case "SUSTAIN_UP": {
-				PIANO_sustain = false;
-				ctrlSetText [SUSTAIN_BACKGROUND_IDC, "#(argb,8,8,3)color(0,0,0,0.8)"];
-				copyToClipboard str PIANO_soundObjects;
-				{
-					if (!isNull _x && !(PIANO_keyHeld select _forEachIndex)) then {
-						[_forEachIndex] call PIANO_fnc_silenceNote;
-					};
-
-				} forEach PIANO_soundObjects;
+				[] call PIANO_fnc_sustainUp;
 			};
 		};
 		
