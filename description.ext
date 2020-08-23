@@ -1,2 +1,5 @@
 #include "piano\sounds.hpp"
-#include "piano\ui.hpp"
+#include "piano\ui\parent.hpp"
+#include "piano\ui\piano.hpp"
+#include "piano\ui\playbackMenu.hpp"
+
